@@ -1,0 +1,650 @@
+[
+  {
+    "id": 1,
+    "name": "Abdimuratova Aykerim",
+    "gender": "Female",
+    "address": "Юсуф Сакокий 116/42",
+    "lat": 41.287623,
+    "lon": 69.153029,
+    "status": "00:00"
+  },
+  {
+    "id": 2,
+    "name": "Abdulin Farid",
+    "gender": "Male",
+    "address": "Киргистан ул 26",
+    "lat": 41.256807,
+    "lon": 69.207243,
+    "status": "23:00"
+  },
+  {
+    "id": 3,
+    "name": "Abdullayeva Nigora",
+    "gender": "Female",
+    "address": "yunsabod 9 4",
+    "lat": 41.37539,
+    "lon": 69.276826,
+    "status": "22:00"
+  },
+  {
+    "id": 4,
+    "name": "Abdullazoda Akbarshoh",
+    "gender": "Male",
+    "address": "Чилонзор 6 квартал, 10",
+    "lat": 41.286905,
+    "lon": 69.213423,
+    "status": "22:00"
+  },
+  {
+    "id": 5,
+    "name": "Abdusattorov Oybek Ulug'bek o'g'li",
+    "gender": "Male",
+    "address": "Оқлон, 1, 20",
+    "lat": 41.317809,
+    "lon": 69.213917,
+    "status": "CANADA"
+  },
+  {
+    "id": 6,
+    "name": "Abrorxonov Saidamirxon Abrorovich",
+    "gender": "Male",
+    "address": "Boshliq massiv 8 ",
+    "lat": 41.270187,
+    "lon": 69.256704,
+    "status": "02:00"
+  },
+  {
+    "id": 7,
+    "name": "Abzalov Komiljon",
+    "gender": "Male",
+    "address": "Хаваст 9",
+    "lat": 41.283002,
+    "lon": 69.329404,
+    "status": "22:00"
+  },
+  {
+    "id": 8,
+    "name": "Adambayeva Xilola",
+    "gender": "Female",
+    "address": "Чиланзар 7 квартал, 50",
+    "lat": 41.295455,
+    "lon": 69.206254,
+    "status": "00:00"
+  },
+  {
+    "id": 9,
+    "name": "Agzamov Timur Alisherovich",
+    "gender": "Male",
+    "address": "Улица Фозилтепа, 22",
+    "lat": 41.278577,
+    "lon": 69.162309,
+    "status": "23:00"
+  },
+  {
+    "id": 10,
+    "name": "Akbarov Abdulaziz Otabek o'g'li",
+    "gender": "Male",
+    "address": "Юнусабад 15-квартал, 41",
+    "lat": 41.375695,
+    "lon": 69.302212,
+    "status": "CANADA"
+  },
+  {
+    "id": 11,
+    "name": "Andreyeva Nargiza Xolmatovna",
+    "gender": "Female",
+    "address": "Куйлюк, 1 массив, 66В",
+    "lat": 41.246712,
+    "lon": 69.317592,
+    "status": "00:00"
+  },
+  {
+    "id": 12,
+    "name": "Anvarjonov Shoxruh",
+    "gender": "Male",
+    "address": "Jambul 4 tor 42",
+    "lat": 41.275582,
+    "lon": 69.237004,
+    "status": "CANADA"
+  },
+  {
+    "id": 13,
+    "name": "Axmedov Ahmad",
+    "gender": "Male",
+    "address": "Toshturma",
+    "lat": 41.353571,
+    "lon": 69.321984,
+    "status": "02:00"
+  },
+  {
+    "id": 14,
+    "name": "A'zamxo'jayev Akbarxo'ja",
+    "gender": "Male",
+    "address": "Ахроробод 24",
+    "lat": 41.387954,
+    "lon": 69.241909,
+    "status": "22:00"
+  },
+  {
+    "id": 15,
+    "name": "Baxodirov Abdusattor",
+    "gender": "Male",
+    "address": "Гулабад массив, 81",
+    "lat": 41.325217,
+    "lon": 69.224769,
+    "status": "00:00"
+  },
+  {
+    "id": 16,
+    "name": "Baxodirov Muhammadali",
+    "gender": "Male",
+    "address": "Сузук ота мечеть",
+    "lat": 41.328015,
+    "lon": 69.23988,
+    "status": "02:00"
+  },
+  {
+    "id": 17,
+    "name": "Baxromova Iroda Abduvosiq qizi",
+    "gender": "Female",
+    "address": "Улица Мохидил, 19 (Эшонгузар)",
+    "lat": 41.245749,
+    "lon": 69.161321,
+    "status": "CANADA"
+  },
+  {
+    "id": 18,
+    "name": "Baymurzayev Anvar",
+    "gender": "Male",
+    "address": "Qoraqamish 1/4/21",
+    "lat": 41.362316,
+    "lon": 69.235171,
+    "status": "22:00"
+  },
+  {
+    "id": 19,
+    "name": "Bekpo'latov Amalbek Baxodir o’g’li",
+    "gender": "Male",
+    "address": "Чарҳновза, 20",
+    "lat": 41.302514,
+    "lon": 69.219496,
+    "status": "CANADA"
+  },
+  {
+    "id": 20,
+    "name": "Daliyeva Saida Alisher qizi",
+    "gender": "Female",
+    "address": "Кўприклик, 107",
+    "lat": 41.311144,
+    "lon": 69.279728,
+    "status": ""
+  },
+  {
+    "id": 21,
+    "name": "Dunayev Danil Konstantinovich",
+    "gender": "Male",
+    "address": "Куйлюк 1 массив 66в",
+    "lat": 41.246712,
+    "lon": 69.317592,
+    "status": "CANADA"
+  },
+  {
+    "id": 22,
+    "name": "Dunayeva Olga",
+    "gender": "Female",
+    "address": "Куйлюк 1 массив 66в",
+    "lat": 41.246712,
+    "lon": 69.317592,
+    "status": "00:00"
+  },
+  {
+    "id": 23,
+    "name": "Djabbarova Sayyora Mamur qizi",
+    "gender": "Female",
+    "address": "4-й проезд Хосилот, 16",
+    "lat": 41.26591,
+    "lon": 69.193912,
+    "status": "22:00"
+  },
+  {
+    "id": 24,
+    "name": "Fatxullayev Sardor Muzaffar o'g'li",
+    "gender": "Male",
+    "address": "Чукурсай 121",
+    "lat": 41.374578,
+    "lon": 69.240606,
+    "status": "00:00"
+  },
+  {
+    "id": 25,
+    "name": "Fozilov To'lqin Doniyor o'g'li",
+    "gender": "Male",
+    "address": "Тузель, 1-массив, 39",
+    "lat": 41.28164,
+    "lon": 69.339214,
+    "status": "02:00"
+  },
+  {
+    "id": 26,
+    "name": "Frolova Yuliya Igorevna",
+    "gender": "Female",
+    "address": "Улица Муминова, 2А (Мирзо Улугбекский район )",
+    "lat": 41.344866,
+    "lon": 69.339645,
+    "status": "23:00"
+  },
+  {
+    "id": 27,
+    "name": "Hodjimatov Dilmurod",
+    "gender": "Male",
+    "address": "Бедазор 13",
+    "lat": 41.343322,
+    "lon": 69.237462,
+    "status": "22:00"
+  },
+  {
+    "id": 28,
+    "name": "Isaxanova Dilafruz",
+    "gender": "Female",
+    "address": "Мирзаабад 7А",
+    "lat": 41.377136,
+    "lon": 69.307602,
+    "status": "22:00"
+  },
+  {
+    "id": 29,
+    "name": "Iskandarova Robiya",
+    "gender": "Female",
+    "address": "Школа 51",
+    "lat": 41.329394,
+    "lon": 69.288061,
+    "status": "00:00"
+  },
+  {
+    "id": 30,
+    "name": "Jo'rabekova Munisa Ulug'bek qizi",
+    "gender": "Female",
+    "address": "Шавкат 1-проезд, 3",
+    "lat": 41.254454,
+    "lon": 69.330968,
+    "status": "CANADA"
+  },
+  {
+    "id": 31,
+    "name": "Jo'rayev Abdulaziz",
+    "gender": "Male",
+    "address": "FOODCITY",
+    "lat": 41.205944,
+    "lon": 69.322907,
+    "status": "02:00"
+  },
+  {
+    "id": 32,
+    "name": "Jo'rayev Akobir Shuxratovich",
+    "gender": "Male",
+    "address": "Қорақамиш 2/1, 26",
+    "lat": 41.355351,
+    "lon": 69.218274,
+    "status": "CANADA"
+  },
+  {
+    "id": 33,
+    "name": "Kamolova Imona Abdurasul qizi",
+    "gender": "Female",
+    "address": "Массив Жарариқ, 7",
+    "lat": 41.33297,
+    "lon": 69.178496,
+    "status": "22:00"
+  },
+  {
+    "id": 34,
+    "name": "Karimov Jasur",
+    "gender": "Male",
+    "address": "улица Шох-Жахон, 4Б",
+    "lat": 41.311144,
+    "lon": 69.279728,
+    "status": "00:00"
+  },
+  {
+    "id": 35,
+    "name": "Karimova Nihola Shuxrat qizi",
+    "gender": "Female",
+    "address": "ТЦ Компасс",
+    "lat": 41.23905,
+    "lon": 69.328735,
+    "status": "23:00"
+  },
+  {
+    "id": 36,
+    "name": "Kistabayeva Zuxra",
+    "gender": "Female",
+    "address": "Феруза 1 32А",
+    "lat": 41.355221,
+    "lon": 69.363305,
+    "status": "22:00"
+  },
+  {
+    "id": 37,
+    "name": "Kuzmicheva Elena",
+    "gender": "Female",
+    "address": "Eski Chilonzor 3 Proezd 6 dom",
+    "lat": 41.289879,
+    "lon": 69.229251,
+    "status": "23:00"
+  },
+  {
+    "id": 38,
+    "name": "Malkov Anatoliy Sergeyevich",
+    "gender": "Male",
+    "address": "Чиланзар 5-квартал, 11",
+    "lat": 41.29036,
+    "lon": 69.217708,
+    "status": "00:00"
+  },
+  {
+    "id": 39,
+    "name": "Mannanov Azimjon Abduvohidovich",
+    "gender": "Male",
+    "address": "Улица Мададкор, 20",
+    "lat": 41.382968,
+    "lon": 69.322191,
+    "status": "CANADA"
+  },
+  {
+    "id": 40,
+    "name": "Maxamadjonov Abdulloh Doniyor o'g'li",
+    "gender": "Male",
+    "address": "Чимбай 222",
+    "lat": 41.346369,
+    "lon": 69.217762,
+    "status": "22:00"
+  },
+  {
+    "id": 41,
+    "name": "Maxamadjonov Ibrohim Doniyor o'g'li",
+    "gender": "Male",
+    "address": "Чимбай 222",
+    "lat": 41.346369,
+    "lon": 69.217762,
+    "status": "CANADA"
+  },
+  {
+    "id": 42,
+    "name": "Maxamatov Kamronbek Aziz o'g'li",
+    "gender": "Male",
+    "address": "Метро Чоштепа",
+    "lat": 41.239294,
+    "lon": 69.194873,
+    "status": "00:00"
+  },
+  {
+    "id": 43,
+    "name": "Mirjonov Shaxriyorbek Mirshodovich",
+    "gender": "Male",
+    "address": "Массив Жангох 1",
+    "lat": 41.328935,
+    "lon": 69.252895,
+    "status": "CANADA"
+  },
+  {
+    "id": 44,
+    "name": "Mirzajonov Mirjalol",
+    "gender": "Male",
+    "address": "Себзар массив, 44",
+    "lat": 41.337974,
+    "lon": 69.249895,
+    "status": "02:00"
+  },
+  {
+    "id": 45,
+    "name": "Nabixo'jayeva Irodaxon",
+    "gender": "Female",
+    "address": "Юнусабад 14 квартал, 23 дом",
+    "lat": 41.373637,
+    "lon": 69.303102,
+    "status": "00:00"
+  },
+  {
+    "id": 46,
+    "name": "Najmiyeva Rushana Tavakalovna",
+    "gender": "Female",
+    "address": "Юнусобод 14 52",
+    "lat": 41.370491,
+    "lon": 69.301772,
+    "status": "CANADA"
+  },
+  {
+    "id": 47,
+    "name": "Nasirova Nargiza",
+    "gender": "Female",
+    "address": "70-мактаб",
+    "lat": 41.335854,
+    "lon": 69.285625,
+    "status": "22:00"
+  },
+  {
+    "id": 48,
+    "name": "Nosirov Abdulloh",
+    "gender": "Male",
+    "address": "Юнусабад 16, 11",
+    "lat": 41.38313,
+    "lon": 69.302141,
+    "status": "00:00"
+  },
+  {
+    "id": 49,
+    "name": "Ochilova Kumush Latif qizi",
+    "gender": "Female",
+    "address": "Паркент 123",
+    "lat": 41.315885,
+    "lon": 69.324006,
+    "status": "02:00"
+  },
+  {
+    "id": 50,
+    "name": "Odilova Muslima Baxtiyor qizi",
+    "gender": "Female",
+    "address": "Массив Гулабад, 43",
+    "lat": 41.323551,
+    "lon": 69.223044,
+    "status": "CANADA"
+  },
+  {
+    "id": 51,
+    "name": "Odrina Olesya",
+    "gender": "Female",
+    "address": "Киргистан ул 26",
+    "lat": 41.256807,
+    "lon": 69.207243,
+    "status": "23:00"
+  },
+  {
+    "id": 52,
+    "name": "Ostonaqulov Bilol",
+    "gender": "Male",
+    "address": "Захидова 5",
+    "lat": 41.269313,
+    "lon": 69.31955,
+    "status": "02:00"
+  },
+  {
+    "id": 53,
+    "name": "Otamurodova Shahrizoda Maqsudbek qizi",
+    "gender": "Female",
+    "address": "Сергели 3A 20",
+    "lat": 41.218271,
+    "lon": 69.200523,
+    "status": "CANADA"
+  },
+  {
+    "id": 54,
+    "name": "Pak Tatyana Sergeyevna",
+    "gender": "Female",
+    "address": "Сергели 3 массив, 11",
+    "lat": 41.214337,
+    "lon": 69.232135,
+    "status": "23:00"
+  },
+  {
+    "id": 55,
+    "name": "Raximdjanov Muhammadjon Rasuljon o'g'li",
+    "gender": "Male",
+    "address": "Массив Себзар, 22",
+    "lat": 41.334101,
+    "lon": 69.249472,
+    "status": "02:00"
+  },
+  {
+    "id": 56,
+    "name": "Raxmatullayev Abbos",
+    "gender": "Male",
+    "address": "Tash GRES 35 ",
+    "lat": 41.376899,
+    "lon": 69.376431,
+    "status": "22:00"
+  },
+  {
+    "id": 57,
+    "name": "Raxmatullayev Abdulla",
+    "gender": "Male",
+    "address": "Tash GRES 35 ",
+    "lat": 41.376899,
+    "lon": 69.376431,
+    "status": "02:00"
+  },
+  {
+    "id": 58,
+    "name": "Sadikov Muhammad Amin ",
+    "gender": "Male",
+    "address": "3-й проезд Чимробод, 65",
+    "lat": 41.337764,
+    "lon": 69.297676,
+    "status": "02:00"
+  },
+  {
+    "id": 59,
+    "name": "Sapixo'jayev Islom",
+    "gender": "Male",
+    "address": "Хасанбой кўчаси 55",
+    "lat": 41.393204,
+    "lon": 69.246526,
+    "status": "22:00"
+  },
+  {
+    "id": 60,
+    "name": "Shamsimuhammedova Komila",
+    "gender": "Female",
+    "address": "Барданкуль проезд, 418/1",
+    "lat": 41.240956,
+    "lon": 69.387445,
+    "status": "22:00"
+  },
+  {
+    "id": 61,
+    "name": "Slivkina Daniya",
+    "gender": "Female",
+    "address": "Сергели 2 дом 31",
+    "lat": 41.211508,
+    "lon": 69.226655,
+    "status": "00:00"
+  },
+  {
+    "id": 62,
+    "name": "Sodiqov Fazliddin",
+    "gender": "Male",
+    "address": "проезд Нурфайз 24",
+    "lat": 41.311476,
+    "lon": 69.199122,
+    "status": "00:00"
+  },
+  {
+    "id": 63,
+    "name": "Soliev Abdulhamid",
+    "gender": "Male",
+    "address": "Chilonzor 24/31",
+    "lat": 41.2804,
+    "lon": 69.172002,
+    "status": "CANADA"
+  },
+  {
+    "id": 64,
+    "name": "Sunnatullayev Abbos Sunnatulla o’g’li",
+    "gender": "Male",
+    "address": "Массив Кушбеги, 4Б",
+    "lat": 41.268147,
+    "lon": 69.245699,
+    "status": "02:00"
+  },
+  {
+    "id": 65,
+    "name": "Turdikulov Shuxrat",
+    "gender": "Male",
+    "address": "ТТЗ 1 квартал, 19",
+    "lat": 41.361964,
+    "lon": 69.393643,
+    "status": "00:00"
+  },
+  {
+    "id": 66,
+    "name": "Tursunova Gulnoza",
+    "gender": "Female",
+    "address": "Юнусабад 2, 18",
+    "lat": 41.361321,
+    "lon": 69.286725,
+    "status": "22:00"
+  },
+  {
+    "id": 67,
+    "name": "Xamidullayev Sunnatulla Akrom o'g'li",
+    "gender": "Male",
+    "address": "Обирахмат 2-й проезд",
+    "lat": 41.25278,
+    "lon": 69.256228,
+    "status": "22:00"
+  },
+  {
+    "id": 68,
+    "name": "Xaqiqi David",
+    "gender": "Male",
+    "address": "Qorasuv 1 13A",
+    "lat": 41.335665,
+    "lon": 69.371562,
+    "status": "23:00"
+  },
+  {
+    "id": 69,
+    "name": "Xasanova Nafisa",
+    "gender": "Female",
+    "address": "Yunusobod Manzara 5",
+    "lat": 41.355676,
+    "lon": 69.314474,
+    "status": "00:00"
+  },
+  {
+    "id": 70,
+    "name": "Xolmatov Abdullox Fozil o'g'li",
+    "gender": "Male",
+    "address": "Istiqlol 5chi o'tish yo'li (Guliston, Qibray tumani)",
+    "lat": 41.409613,
+    "lon": 69.310064,
+    "status": "CANADA"
+  },
+  {
+    "id": 71,
+    "name": "Xolmatova Mehribon Fozil qizi",
+    "gender": "Female",
+    "address": "Istiqlol 5chi o'tish yo'li (Guliston, Qibray tumani)",
+    "lat": 41.409613,
+    "lon": 69.310064,
+    "status": "CANADA"
+  },
+  {
+    "id": 72,
+    "name": "Yo'ldoshboyev Muhammadrahim",
+    "gender": "Male",
+    "address": "Ибрат 68а",
+    "lat": 41.308082,
+    "lon": 69.172702,
+    "status": "02:00"
+  }
+]

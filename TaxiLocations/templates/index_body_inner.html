@@ -1,0 +1,76 @@
+  <div class="app-root">
+    <div class="header">
+      <div class="header-title">Taxi Routing</div>
+      <div class="header-counters">
+        <div class="header-total" id="totalCount">Всего: 0</div>
+        <div class="header-selected" id="selectedCount">Выбрано: 0</div>
+        <div class="header-total">
+          Вызов: <input id="priceCarInput" type="number" min="0" step="1000" value="{{ cost_per_car|default(15000) }}" style="width:80px;background:var(--bg-input);border:1px solid var(--border);color:var(--fg);border-radius:4px;padding:2px 4px;" />
+        </div>
+        <div class="header-total">
+          за км: <input id="priceKmInput" type="number" min="0" step="100" value="{{ cost_per_km|default(2200) }}" style="width:70px;background:var(--bg-input);border:1px solid var(--border);color:var(--fg);border-radius:4px;padding:2px 4px;" />
+        </div>
+        <div class="header-total">
+          <a href="{{ url_for('logout') }}" style="color: {{ fg_dim }}; font-size: 13px; text-decoration:none;">Выйти</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <span class="toolbar-label">Поиск:</span>
+      <input id="searchInput" type="text" class="input-text" placeholder="Имя или адрес..." />
+
+      <button id="btnSelectAll" class="btn">Выбрать всех</button>
+      <button id="btnClearAll" class="btn">Снять все</button>
+      <button id="btnReload" class="btn">⟳ Обновить данные</button>
+      <button id="btnExportExcel" class="btn">Export Excel</button>
+      <button id="btnImportExcel" class="btn">Import Excel</button>
+      <input id="importExcelInput" type="file" accept=".xlsx,.xls" style="display:none" />
+
+      <div style="margin-left: 12px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+        <span class="toolbar-label">Статус:</span>
+        <button class="btn btn-status btn-status-active" data-status-filter="">Все</button>
+        <button class="btn btn-status" data-status-filter="__UNSET__">Без статуса</button>
+        {% for st in statuses %}
+        <button class="btn btn-status" data-status-filter="{{ st }}">{{ st }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <main class="main">
+      <div class="split">
+        <div class="left-panel">
+          <section class="card employee-list-container">
+            <div class="card-header">Сотрудники</div>
+            <div class="employee-list-header">
+              <div></div>
+              <div>№</div>
+              <div>Имя</div>
+              <div>Адрес</div>
+              <div>Статус</div>
+            </div>
+            <div id="employeeList" class="employee-list"></div>
+          </section>
+
+          <section class="console">
+            <div class="console-toolbar">
+              <button id="btnBuildRoutes" class="btn btn-primary">Построить маршруты</button>
+              <button id="btnCancelRoutes" class="btn">Отменить расчёт</button>
+              <button id="btnCopySummary" class="btn">Копировать</button>
+              <span id="consoleStatus" class="console-status"></span>
+            </div>
+            <div id="summary" class="console-body"></div>
+            <div id="routesLinks" class="routes-links"></div>
+          </section>
+        </div>
+
+        <section id="mapContainer">
+          <div class="map-header">
+            <span>Карта маршрутов</span>
+            <div id="mapLegend" class="map-legend"></div>
+          </div>
+          <div id="map"></div>
+        </section>
+      </div>
+    </main>
+  </div>

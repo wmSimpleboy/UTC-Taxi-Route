@@ -1,0 +1,9 @@
+flask>=3.0,<4
+flask-wtf>=1.2,<2
+python-dotenv>=1.0,<2
+pandas>=2.0,<3
+numpy>=2.0,<3
+requests>=2.31,<3
+ortools>=9.8,<10
+googlemaps>=4.10,<5
+openpyxl>=3.1,<4

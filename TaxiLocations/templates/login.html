@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>Taxi Routing — Login</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #1e1e2e;
+      color: #cdd6f4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .card {
+      background: #2a2a3d;
+      border-radius: 10px;
+      padding: 24px 28px;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+      min-width: 320px;
+    }
+    h1 {
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      color: #89b4fa;
+    }
+    label {
+      font-size: 13px;
+      color: #6c7086;
+      display: block;
+      margin-bottom: 4px;
+    }
+    input {
+      width: 100%;
+      background: #33334d;
+      border: 1px solid #45475a;
+      border-radius: 4px;
+      padding: 6px 8px;
+      color: #cdd6f4;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    input:focus {
+      outline: none;
+      border-color: #89b4fa;
+    }
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #89b4fa;
+      color: #1e1e2e;
+      font-weight: 600;
+    }
+    .btn:hover {
+      background: #74a8e8;
+    }
+    .error {
+      color: #f38ba8;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Taxi Routing</h1>
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <label for="username">Логин</label>
+      <input id="username" name="username" autocomplete="username" />
+      <label for="password">Пароль</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" />
+      <button class="btn" type="submit">Войти</button>
+    </form>
+  </div>
+</body>
+</html>
