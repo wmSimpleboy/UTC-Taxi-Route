@@ -1,6 +1,8 @@
 import os
 import time
 import logging
+import functools
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable, List, Tuple, Dict, Any
 
 import pandas as pd
@@ -11,6 +13,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 log = logging.getLogger(__name__)
+
+_osrm_session = _requests.Session()
 
 
 class RoutingCancelled(Exception):
@@ -35,7 +39,7 @@ COST_PER_CAR: float = 15_000
 COST_PER_KM: float = 2_200
 
 def _osrm_base_url() -> str:
-    return (os.environ.get("OSRM_BASE_URL") or "http://localhost:5001").rstrip("/")
+    return (os.environ.get("OSRM_BASE_URL") or "http://localhost:5000").rstrip("/")
 
 
 OSRM_BASE_URL: str = _osrm_base_url()
@@ -62,7 +66,7 @@ def fetch_distance_matrix(
     base = _osrm_base_url()
     url = f"{base}/table/v1/driving/{coords}?annotations=distance"
     try:
-        resp = _requests.get(url, timeout=30)
+        resp = _osrm_session.get(url, timeout=30)
         resp.raise_for_status()
     except _requests.RequestException as e:
         raise OSRMUnavailableError(
@@ -107,35 +111,46 @@ def preprocess_duplicates(df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 _COST_SCALE = 100  # multiply km*COST_PER_KM by this to keep integer precision
-def _load_ortools():
-    # Lazy import: keeps Flask app startup stable even if OR-Tools
-    # native DLL loading is slow/broken in current environment.
-    from ortools.constraint_solver import routing_enums_pb2, pywrapcp
 
+
+@functools.lru_cache(maxsize=1)
+def _load_ortools():
+    from ortools.constraint_solver import routing_enums_pb2, pywrapcp
     return routing_enums_pb2, pywrapcp
 
 
-def _multistart_config(routing_enums_pb2):
+def _time_limit_for_n(n_emp: int) -> int:
+    if n_emp <= 10:
+        return 5
+    if n_emp <= 30:
+        return 10
+    if n_emp <= 50:
+        return 13
+    return 15
+
+
+def _multistart_config(routing_enums_pb2, n_emp: int):
+    t = _time_limit_for_n(n_emp)
     return [
         (
             routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION,
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH,
-            18,
+            t,
         ),
         (
             routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC,
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH,
-            18,
+            t,
         ),
         (
             routing_enums_pb2.FirstSolutionStrategy.SAVINGS,
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH,
-            18,
+            t,
         ),
         (
             routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION,
             routing_enums_pb2.LocalSearchMetaheuristic.TABU_SEARCH,
-            18,
+            t,
         ),
     ]
 
@@ -216,7 +231,6 @@ def _solve_vrp_once(
     params.local_search_metaheuristic = local_search_metaheuristic
     params.time_limit.FromSeconds(time_limit_s)
     params.solution_limit = 2_000_000
-    # Some OR-Tools versions expose random_seed, some don't.
     if hasattr(params, "random_seed"):
         setattr(params, "random_seed", random_seed)
 
@@ -262,10 +276,9 @@ def solve_vrp(
         sum(COST_PER_CAR for each used vehicle) +
         sum(COST_PER_KM * km for each vehicle's route).
 
-    Returns list of route dicts:
-        "group": pd.DataFrame (rows in optimal drop-off order),
-        "order": list of (lat, lon),
-        "distance_km": float,
+    All multistart configs run in parallel via ThreadPoolExecutor.
+    OR-Tools releases the GIL during its C++ solve, so threads give
+    real parallelism here.
     """
     n_emp = len(df)
     if n_emp == 0:
@@ -273,7 +286,6 @@ def solve_vrp(
 
     coords = [(row["Lat"], row["Lon"]) for _, row in df.iterrows()]
     all_points = [COMPANY_LOCATION] + coords  # 0 = depot
-    n = len(all_points)
 
     dist_km = fetch_distance_matrix(all_points, is_cancelled=is_cancelled)
 
@@ -285,36 +297,49 @@ def solve_vrp(
 
     try:
         routing_enums_pb2, _ = _load_ortools()
-        multistart = _multistart_config(routing_enums_pb2)
+        multistart = _multistart_config(routing_enums_pb2, n_emp)
     except Exception as exc:
         log.warning("OR-Tools unavailable, using fallback single routes: %s", exc)
         fallback = _fallback_single(df, dist_km)
         return fallback, []
 
-    for run_idx, (first_strategy, metaheuristic, run_time) in enumerate(multistart, 1):
-        _ensure_not_cancelled(is_cancelled)
-        obj, routes = _solve_vrp_once(
-            df=df,
-            dist_km=dist_km,
-            cost_matrix=cost_matrix,
-            dist_matrix_int=dist_matrix_int,
-            first_solution_strategy=first_strategy,
-            local_search_metaheuristic=metaheuristic,
-            time_limit_s=run_time,
-            random_seed=42 + run_idx,
-            cost_per_car=cost_per_car,
-            is_cancelled=is_cancelled,
-        )
-        if not routes:
-            continue
-        if obj < best_obj:
-            # новое лучшее решение, старое уходит в альтернативы (если было)
-            if best_routes:
-                alt_solutions.append(best_routes)
-            best_obj = obj
-            best_routes = routes
-        else:
-            alt_solutions.append(routes)
+    with ThreadPoolExecutor(max_workers=len(multistart)) as executor:
+        futures = {}
+        for run_idx, (first_strategy, metaheuristic, run_time) in enumerate(multistart, 1):
+            _ensure_not_cancelled(is_cancelled)
+            fut = executor.submit(
+                _solve_vrp_once,
+                df=df,
+                dist_km=dist_km,
+                cost_matrix=cost_matrix,
+                dist_matrix_int=dist_matrix_int,
+                first_solution_strategy=first_strategy,
+                local_search_metaheuristic=metaheuristic,
+                time_limit_s=run_time,
+                random_seed=42 + run_idx,
+                cost_per_car=cost_per_car,
+                is_cancelled=is_cancelled,
+            )
+            futures[fut] = run_idx
+
+        for fut in as_completed(futures):
+            _ensure_not_cancelled(is_cancelled)
+            try:
+                obj, routes = fut.result()
+            except RoutingCancelled:
+                raise
+            except Exception:
+                log.exception("VRP solver run %d failed", futures[fut])
+                continue
+            if not routes:
+                continue
+            if obj < best_obj:
+                if best_routes:
+                    alt_solutions.append(best_routes)
+                best_obj = obj
+                best_routes = routes
+            else:
+                alt_solutions.append(routes)
 
     if not best_routes:
         log.warning("VRP solver found no solution — falling back to single routes")
@@ -430,7 +455,7 @@ def fetch_route_geometry(
     base = _osrm_base_url()
     url = f"{base}/route/v1/driving/{coords}?overview=full&geometries=geojson"
     try:
-        resp = _requests.get(url, timeout=15)
+        resp = _osrm_session.get(url, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         if data.get("code") == "Ok" and data.get("routes"):
@@ -440,8 +465,43 @@ def fetch_route_geometry(
             return ([[c[1], c[0]] for c in geojson_coords], distance_km, True)
     except Exception as e:
         log.warning("OSRM route geometry fetch failed: %s", e)
-    # No synthetic fallback here: caller can decide how to handle non-exact geometry.
     return ([], 0.0, False)
+
+
+def _fetch_single_route_map_data(
+    i: int,
+    r: Dict[str, Any],
+    is_cancelled: Callable[[], bool] | None,
+) -> Dict[str, Any]:
+    """Build map data for one route (used by parallel executor)."""
+    _ensure_not_cancelled(is_cancelled)
+    all_points = [COMPANY_LOCATION] + list(r["order"])
+    geometry, road_distance_km, exact_ok = fetch_route_geometry(
+        all_points, is_cancelled=is_cancelled
+    )
+
+    waypoints = [{
+        "lat": COMPANY_LOCATION[0],
+        "lon": COMPANY_LOCATION[1],
+        "name": "Офис",
+        "label": "O",
+    }]
+    for j, (_, row) in enumerate(r["group"].iterrows()):
+        waypoints.append({
+            "lat": r["order"][j][0],
+            "lon": r["order"][j][1],
+            "name": str(row["Name"]),
+            "label": str(j + 1),
+        })
+
+    return {
+        "waypoints": waypoints,
+        "geometry": geometry,
+        "exact_geometry": exact_ok,
+        "road_distance_km": round(road_distance_km, 2),
+        "distance_km": round(r["distance_km"], 2),
+        "color": ROUTE_COLORS[i % len(ROUTE_COLORS)],
+    }
 
 
 def build_route_data_for_map(
@@ -449,38 +509,26 @@ def build_route_data_for_map(
     *,
     is_cancelled: Callable[[], bool] | None = None,
 ) -> List[Dict[str, Any]]:
-    """Build structured route data for Leaflet map rendering."""
-    result = []
-    for i, r in enumerate(routes):
-        _ensure_not_cancelled(is_cancelled)
-        all_points = [COMPANY_LOCATION] + list(r["order"])
-        geometry, road_distance_km, exact_ok = fetch_route_geometry(
-            all_points, is_cancelled=is_cancelled
-        )
+    """Build structured route data for Leaflet map rendering (parallel geometry fetch)."""
+    if not routes:
+        return []
 
-        waypoints = [{
-            "lat": COMPANY_LOCATION[0],
-            "lon": COMPANY_LOCATION[1],
-            "name": "Офис",
-            "label": "O",
-        }]
-        for j, (_, row) in enumerate(r["group"].iterrows()):
-            waypoints.append({
-                "lat": r["order"][j][0],
-                "lon": r["order"][j][1],
-                "name": str(row["Name"]),
-                "label": str(j + 1),
-            })
+    with ThreadPoolExecutor(max_workers=min(len(routes), 8)) as executor:
+        futures = {
+            executor.submit(_fetch_single_route_map_data, i, r, is_cancelled): i
+            for i, r in enumerate(routes)
+        }
+        results: dict[int, Dict[str, Any]] = {}
+        for fut in as_completed(futures):
+            idx = futures[fut]
+            try:
+                results[idx] = fut.result()
+            except RoutingCancelled:
+                raise
+            except Exception:
+                log.exception("Geometry fetch for route %d failed", idx)
 
-        result.append({
-            "waypoints": waypoints,
-            "geometry": geometry,
-            "exact_geometry": exact_ok,
-            "road_distance_km": round(road_distance_km, 2),
-            "distance_km": round(r["distance_km"], 2),
-            "color": ROUTE_COLORS[i % len(ROUTE_COLORS)],
-        })
-    return result
+    return [results[i] for i in sorted(results)]
 
 
 def open_yandex_routes_from_urls(urls: List[str]) -> None:

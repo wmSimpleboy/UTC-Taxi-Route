@@ -1,14 +1,14 @@
 Param(
     [string]$OsrmDataDir = "osrm-data",
     [string]$PbfUrl = "http://download.geofabrik.de/asia/uzbekistan-latest.osm.pbf",
-    [int]$Port = 5001
+    [int]$Port = 5000
 )
 
 Write-Host "=== Taxi Routing - OSRM setup ===" -ForegroundColor Cyan
 
 $ErrorActionPreference = "Stop"
 
-# 1) Prepare data directory
+# 1) Prepare data directory`
 $dataPath = Join-Path -Path (Get-Location) -ChildPath $OsrmDataDir
 if (-not (Test-Path $dataPath)) {
     Write-Host "Creating data directory: $dataPath"
