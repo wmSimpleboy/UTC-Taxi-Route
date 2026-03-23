@@ -12,7 +12,9 @@ def main() -> None:
     app = create_app()
     port = int(os.environ.get("FLASK_PORT", "5002"))
     debug = os.environ.get("FLASK_DEBUG") == "1"
-    app.run(debug=debug, port=port)
+    # Use FLASK_HOST=0.0.0.0 in Docker so the port is reachable from the host.
+    host = os.environ.get("FLASK_HOST", "127.0.0.1")
+    app.run(debug=debug, host=host, port=port)
 
 
 if __name__ == "__main__":

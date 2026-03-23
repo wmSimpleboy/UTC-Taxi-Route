@@ -123,7 +123,7 @@
     "address": "Ахроробод 24",
     "lat": 41.387954,
     "lon": 69.241909,
-    "status": "22:00"
+    "status": "02:00"
   },
   {
     "id": 15,
@@ -139,8 +139,8 @@
     "name": "Baxodirov Muhammadali",
     "gender": "Male",
     "address": "Сузук ота мечеть",
-    "lat": 41.328015,
-    "lon": 69.23988,
+    "lat": 41.318052,
+    "lon": 69.224535,
     "status": "02:00"
   },
   {
@@ -220,8 +220,8 @@
     "name": "Fozilov To'lqin Doniyor o'g'li",
     "gender": "Male",
     "address": "Тузель, 1-массив, 39",
-    "lat": 41.28164,
-    "lon": 69.339214,
+    "lat": 41.29761,
+    "lon": 69.360154,
     "status": "02:00"
   },
   {
@@ -283,8 +283,8 @@
     "name": "Jo'rayev Akobir Shuxratovich",
     "gender": "Male",
     "address": "Қорақамиш 2/1, 26",
-    "lat": 41.355351,
-    "lon": 69.218274,
+    "lat": 41.356346,
+    "lon": 69.220717,
     "status": "CANADA"
   },
   {
@@ -301,8 +301,8 @@
     "name": "Karimov Jasur",
     "gender": "Male",
     "address": "улица Шох-Жахон, 4Б",
-    "lat": 41.311144,
-    "lon": 69.279728,
+    "lat": 41.285319,
+    "lon": 69.248206,
     "status": "00:00"
   },
   {
@@ -591,7 +591,7 @@
     "address": "Юнусабад 2, 18",
     "lat": 41.361321,
     "lon": 69.286725,
-    "status": "22:00"
+    "status": ""
   },
   {
     "id": 67,

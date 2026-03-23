@@ -1,3 +1,4 @@
+import itertools
 import os
 import time
 import logging
@@ -32,11 +33,16 @@ def _ensure_not_cancelled(is_cancelled: Callable[[], bool] | None) -> None:
 # === CONFIGURATION ===
 COMPANY_LOCATION: Tuple[float, float] = (41.285062, 69.268777)
 MAX_GROUP_SIZE: int = 4
+EXACT_DP_MAX_N: int = 18
 EPSILON_DUPLICATE: float = 0.00001
 
 # === COST SETTINGS (UZS) ===
 COST_PER_CAR: float = 15_000
 COST_PER_KM: float = 2_200
+
+# === ROUTE SPLIT SETTINGS ===
+SPLIT_MIN_ROUTE_KM: float = float(os.environ.get("SPLIT_MIN_ROUTE_KM", "25"))
+SPLIT_MAX_EXTRA_COST_UZS: float = float(os.environ.get("SPLIT_MAX_EXTRA_COST_UZS", "10000"))
 
 def _osrm_base_url() -> str:
     return (os.environ.get("OSRM_BASE_URL") or "http://localhost:5000").rstrip("/")
@@ -230,7 +236,7 @@ def _solve_vrp_once(
     params.first_solution_strategy = first_solution_strategy
     params.local_search_metaheuristic = local_search_metaheuristic
     params.time_limit.FromSeconds(time_limit_s)
-    params.solution_limit = 2_000_000
+    params.solution_limit = 10_000_000
     if hasattr(params, "random_seed"):
         setattr(params, "random_seed", random_seed)
 
@@ -264,30 +270,114 @@ def _solve_vrp_once(
     return int(solution.ObjectiveValue()), routes
 
 
+def _solve_exact_dp(
+    df: pd.DataFrame,
+    dist_km: List[List[float]],
+    cost_per_car: float,
+    cost_per_km: float,
+    is_cancelled: Callable[[], bool] | None = None,
+) -> List[Dict[str, Any]]:
+    """
+    Exact bitmask DP solver for small instances (n <= EXACT_DP_MAX_N).
+    Guarantees the globally optimal partition of employees into groups
+    of at most MAX_GROUP_SIZE, minimizing total cost.
+    """
+    n = len(df)
+    FULL = (1 << n) - 1
+
+    _ensure_not_cancelled(is_cancelled)
+
+    # Phase 1: for every subset of size 1..MAX_GROUP_SIZE find the
+    # shortest depot->...->last chain (best permutation).
+    sub_best: Dict[int, Tuple[float, Tuple[int, ...]]] = {}
+    for size in range(1, min(MAX_GROUP_SIZE, n) + 1):
+        for comb in itertools.combinations(range(1, n + 1), size):
+            _ensure_not_cancelled(is_cancelled)
+            best_dist = float("inf")
+            best_perm: Tuple[int, ...] = comb
+            for perm in itertools.permutations(comb):
+                d = dist_km[0][perm[0]]
+                for a, b in zip(perm, perm[1:]):
+                    d += dist_km[a][b]
+                if d < best_dist:
+                    best_dist = d
+                    best_perm = perm
+            mask = 0
+            for i in comb:
+                mask |= 1 << (i - 1)
+            sub_best[mask] = (best_dist, best_perm)
+
+    # Phase 2: bitmask DP — optimal partition into groups.
+    INF = float("inf")
+    dp = [INF] * (1 << n)
+    choice: List[Tuple[int, int] | None] = [None] * (1 << n)
+    dp[0] = 0.0
+
+    for mask in range(1 << n):
+        if dp[mask] >= INF:
+            continue
+        _ensure_not_cancelled(is_cancelled)
+        comp_bits = [b for b in range(n) if not (mask & (1 << b))]
+        for size in range(1, min(MAX_GROUP_SIZE, len(comp_bits)) + 1):
+            for comb in itertools.combinations(comp_bits, size):
+                sub_mask = 0
+                for b in comb:
+                    sub_mask |= 1 << b
+                dist, _ = sub_best[sub_mask]
+                cost = dp[mask] + cost_per_car + cost_per_km * dist
+                new_mask = mask | sub_mask
+                if cost < dp[new_mask]:
+                    dp[new_mask] = cost
+                    choice[new_mask] = (mask, sub_mask)
+
+    # Phase 3: reconstruct routes.
+    routes: List[Dict[str, Any]] = []
+    m = FULL
+    while m:
+        prev_mask, sub_mask = choice[m]  # type: ignore[misc]
+        dist, perm = sub_best[sub_mask]
+        df_rows = [p - 1 for p in perm]
+        group_df = df.iloc[df_rows].copy()
+        order = [(row["Lat"], row["Lon"]) for _, row in group_df.iterrows()]
+        routes.append({"group": group_df, "order": order, "distance_km": dist})
+        m = prev_mask
+
+    log.info(
+        "Exact DP solved %d employees → %d cars, total cost %.0f UZS",
+        n, len(routes), dp[FULL],
+    )
+    return routes
+
+
 def solve_vrp(
     df: pd.DataFrame,
     *,
     cost_per_car: float = COST_PER_CAR,
     cost_per_km: float = COST_PER_KM,
     is_cancelled: Callable[[], bool] | None = None,
-) -> Tuple[List[Dict[str, Any]], List[List[Dict[str, Any]]]]:
+) -> Tuple[List[Dict[str, Any]], List[List[Dict[str, Any]]], bool]:
     """
     Solve the Capacitated VRP minimizing total cost =
         sum(COST_PER_CAR for each used vehicle) +
         sum(COST_PER_KM * km for each vehicle's route).
 
-    All multistart configs run in parallel via ThreadPoolExecutor.
-    OR-Tools releases the GIL during its C++ solve, so threads give
-    real parallelism here.
+    Returns (best_routes, alt_solutions, is_exact).
+    is_exact=True when the bitmask DP solver was used (post-split unnecessary).
     """
     n_emp = len(df)
     if n_emp == 0:
-        return [], []
+        return [], [], True
 
     coords = [(row["Lat"], row["Lon"]) for _, row in df.iterrows()]
     all_points = [COMPANY_LOCATION] + coords  # 0 = depot
 
     dist_km = fetch_distance_matrix(all_points, is_cancelled=is_cancelled)
+
+    if n_emp <= EXACT_DP_MAX_N:
+        exact_routes = _solve_exact_dp(
+            df, dist_km, cost_per_car, cost_per_km, is_cancelled,
+        )
+        return exact_routes, [], True
 
     cost_matrix, dist_matrix_int = _build_matrices(dist_km, cost_per_km)
 
@@ -301,7 +391,7 @@ def solve_vrp(
     except Exception as exc:
         log.warning("OR-Tools unavailable, using fallback single routes: %s", exc)
         fallback = _fallback_single(df, dist_km)
-        return fallback, []
+        return fallback, [], False
 
     with ThreadPoolExecutor(max_workers=len(multistart)) as executor:
         futures = {}
@@ -344,9 +434,9 @@ def solve_vrp(
     if not best_routes:
         log.warning("VRP solver found no solution — falling back to single routes")
         fallback = _fallback_single(df, dist_km)
-        return fallback, []
+        return fallback, [], False
 
-    return best_routes, alt_solutions
+    return best_routes, alt_solutions, False
 
 
 def _fallback_single(
@@ -361,6 +451,106 @@ def _fallback_single(
         }
         for i, (_, row) in enumerate(df.iterrows())
     ]
+
+
+# ---------------------------------------------------------------------------
+# Post-VRP: split long routes
+# ---------------------------------------------------------------------------
+
+def _compute_chain_distance(
+    dm: List[List[float]], indices: List[int],
+) -> float:
+    """Sum of distances along a chain of dm indices: indices[0]->indices[1]->..."""
+    total = 0.0
+    for a, b in zip(indices, indices[1:]):
+        total += dm[a][b]
+    return total
+
+
+def _try_split_route(
+    route: Dict[str, Any],
+    cost_per_car: float,
+    cost_per_km: float,
+    max_extra: float,
+    is_cancelled: Callable[[], bool] | None,
+) -> List[Dict[str, Any]] | None:
+    """
+    Try every split position for a single route.
+    Returns [route_a, route_b] if best split is within budget, else None.
+    """
+    group = route["group"]
+    order = route["order"]
+    n = len(order)
+
+    points = [COMPANY_LOCATION] + list(order)
+    dm = fetch_distance_matrix(points, is_cancelled=is_cancelled)
+
+    original_cost = calc_car_cost(route["distance_km"], cost_per_car, cost_per_km)
+
+    best_split = None
+    best_extra = float("inf")
+
+    for k in range(1, n):
+        chain_a = [0] + list(range(1, k + 1))
+        chain_b = [0] + list(range(k + 1, n + 1))
+
+        dist_a = _compute_chain_distance(dm, chain_a)
+        dist_b = _compute_chain_distance(dm, chain_b)
+
+        cost_a = calc_car_cost(dist_a, cost_per_car, cost_per_km)
+        cost_b = calc_car_cost(dist_b, cost_per_car, cost_per_km)
+        extra = (cost_a + cost_b) - original_cost
+
+        if extra <= max_extra and extra < best_extra:
+            best_extra = extra
+            best_split = (k, dist_a, dist_b)
+
+    if best_split is None:
+        return None
+
+    k, dist_a, dist_b = best_split
+    df_a = group.iloc[:k].copy()
+    df_b = group.iloc[k:].copy()
+    log.info(
+        "Split route (%.1f km) at position %d → %.1f km + %.1f km "
+        "(extra cost: %+.0f UZS)",
+        route["distance_km"], k, dist_a, dist_b, best_extra,
+    )
+    return [
+        {"group": df_a, "order": order[:k], "distance_km": dist_a},
+        {"group": df_b, "order": order[k:], "distance_km": dist_b},
+    ]
+
+
+def maybe_split_long_routes(
+    routes: List[Dict[str, Any]],
+    *,
+    cost_per_car: float = COST_PER_CAR,
+    cost_per_km: float = COST_PER_KM,
+    split_min_km: float = SPLIT_MIN_ROUTE_KM,
+    split_max_extra: float = SPLIT_MAX_EXTRA_COST_UZS,
+    is_cancelled: Callable[[], bool] | None = None,
+) -> List[Dict[str, Any]]:
+    """
+    Post-process VRP routes: if a route is >= split_min_km and has >= 2
+    passengers, try splitting it into two cars.  Accept the split only when
+    the total cost increase is <= split_max_extra UZS.
+    """
+    result: List[Dict[str, Any]] = []
+    for r in routes:
+        if r["distance_km"] < split_min_km or len(r["group"]) < 2:
+            result.append(r)
+            continue
+
+        _ensure_not_cancelled(is_cancelled)
+        split = _try_split_route(
+            r, cost_per_car, cost_per_km, split_max_extra, is_cancelled,
+        )
+        if split is not None:
+            result.extend(split)
+        else:
+            result.append(r)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -571,13 +761,22 @@ def run_routing_for_df_with_urls(
         cost_per_km = COST_PER_KM
 
     df = preprocess_duplicates(df)
-    best_routes, alt_routes = solve_vrp(
+    best_routes, alt_routes, is_exact = solve_vrp(
         df,
         cost_per_car=cost_per_car,
         cost_per_km=cost_per_km,
         is_cancelled=is_cancelled,
     )
     _ensure_not_cancelled(is_cancelled)
+
+    if not is_exact:
+        best_routes = maybe_split_long_routes(
+            best_routes,
+            cost_per_car=cost_per_car,
+            cost_per_km=cost_per_km,
+            is_cancelled=is_cancelled,
+        )
+        _ensure_not_cancelled(is_cancelled)
 
     summary = summarize_routes(
         best_routes, cost_per_car=cost_per_car, cost_per_km=cost_per_km,
