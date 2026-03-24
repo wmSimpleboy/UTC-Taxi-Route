@@ -6,49 +6,42 @@ variables:
   DOCKER_DRIVER: overlay2
   DOCKER_HOST: "unix:///var/run/docker.sock"
 
-# ---------- TEMPLATES ----------
+# ---------- TEMPLATE ----------
 
-.build_dev_template:
-  stage: build
-  image: docker:25
-  script:
-    - docker compose -f docker-compose.yml build
+.before_script_template:
+  before_script:
+    - apk add --no-cache docker-cli-compose
 
-.deploy_dev_template:
-  stage: deploy
-  image: docker:25
-  script:
-    - docker compose -f docker-compose.yml down
-    - docker compose -f docker-compose.yml up -d
-    - docker image prune -f
+    # создаём .env
+    - echo "FLASK_SECRET_KEY=$FLASK_SECRET_KEY" >> .env
+    - echo "LOGIN_USERNAME=$LOGIN_USERNAME" >> .env
+    - echo "LOGIN_PASSWORD=$LOGIN_PASSWORD" >> .env
+    - echo "GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY" >> .env
+    - echo "FLASK_PORT=4017" >> .env
+    - echo "FLASK_DEBUG=0" >> .env
+    - echo "OSRM_BASE_URL=http://osrm:5000" >> .env
+
+# ---------- BUILD ----------
 
 .build_prod_template:
   stage: build
   image: docker:25
+  extends: .before_script_template
   script:
-    - docker compose -f docker-compose.yml build
+    - docker compose build
+
+# ---------- DEPLOY ----------
 
 .deploy_prod_template:
   stage: deploy
   image: docker:25
+  extends: .before_script_template
   script:
-    - docker compose -f docker-compose.yml down
-    - docker compose -f docker-compose.yml up -d
+    # НЕ трогаем osrm-init и volume
+    - docker compose up -d --remove-orphans
+
+    # чистим мусор
     - docker image prune -f
-
-# ---------- DEV ----------
-
-# build-dev:
-#   extends: .build_dev_template
-#   tags: [wfm_dev]
-#   rules:
-#     - if: '$CI_COMMIT_BRANCH == "dev"'
-
-# deploy-dev:
-#   extends: .deploy_dev_template
-#   tags: [wfm_dev]
-#   rules:
-#     - if: '$CI_COMMIT_BRANCH == "dev"'
 
 # ---------- PROD ----------
 
