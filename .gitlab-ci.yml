@@ -10,15 +10,16 @@ variables:
   before_script:
     - apk add --no-cache docker-cli-compose
 
-    # пересоздаём .env
     - rm -f .env
-    - echo "FLASK_SECRET_KEY=$FLASK_SECRET_KEY" >> .env
-    - echo "LOGIN_USERNAME=$LOGIN_USERNAME" >> .env
-    - echo "LOGIN_PASSWORD=$LOGIN_PASSWORD" >> .env
-    - echo "GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY" >> .env
-    - echo "FLASK_PORT=4017" >> .env
-    - echo "FLASK_DEBUG=0" >> .env
-    - echo "OSRM_BASE_URL=http://osrm:5000" >> .env
+    - echo "FLASK_SECRET_KEY=$FLASK_SECRET_KEY"       >> .env
+    - echo "FLASK_DEBUG=0"                             >> .env
+    - echo "FLASK_PORT=4017"                           >> .env
+    - echo "LOGIN_USERNAME=$LOGIN_USERNAME"             >> .env
+    - echo "LOGIN_PASSWORD=$LOGIN_PASSWORD"             >> .env
+    - echo "OSRM_BASE_URL=http://osrm:5000"            >> .env
+    - echo "GOOGLE_MAPS_API_KEY=$GOOGLE_MAPS_API_KEY"  >> .env
+    - echo "SPLIT_MIN_ROUTE_KM=25"                     >> .env
+    - echo "SPLIT_MAX_EXTRA_COST_UZS=20000"            >> .env
 
 .build_prod_template:
   stage: build
@@ -34,6 +35,7 @@ variables:
   script:
     - docker compose up -d web
     - docker image prune -f
+
 build-prod:
   extends: .build_prod_template
   tags: [crm-dev]
