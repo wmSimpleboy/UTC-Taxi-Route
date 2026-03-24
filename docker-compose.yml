@@ -11,37 +11,10 @@
 #   rm -rf osrm-data && docker compose up -d --build
 
 services:
-  osrm-init:
-    image: osrm/osrm-backend
-    container_name: taxi-locations-osrm-init
-    volumes:
-      - ./data:/source:ro
-      - ./osrm-data:/data
-    entrypoint: ["sh", "-c"]
-    command:
-      - |
-        set -e
-        if [ -f /data/uzbekistan.osrm ]; then
-          echo "==> OSRM data already prepared, skipping init."
-          exit 0
-        fi
-        echo "==> Copying PBF file..."
-        cp "/source/${PBF_FILE:-uzbekistan-260323.osm.pbf}" /data/uzbekistan.osm.pbf
-        echo "==> Running osrm-extract (may take several minutes)..."
-        osrm-extract -p /opt/car.lua /data/uzbekistan.osm.pbf
-        echo "==> Running osrm-partition..."
-        osrm-partition /data/uzbekistan.osrm
-        echo "==> Running osrm-customize..."
-        osrm-customize /data/uzbekistan.osrm
-        echo "==> OSRM data preparation complete!"
-
   osrm:
     image: osrm/osrm-backend
     container_name: taxi-locations-osrm
     restart: unless-stopped
-    depends_on:
-      osrm-init:
-        condition: service_completed_successfully
     ports:
       - "${OSRM_HOST_PORT:-5000}:5000"
     volumes:
@@ -55,8 +28,7 @@ services:
     container_name: taxi-locations-web
     restart: unless-stopped
     depends_on:
-      osrm:
-        condition: service_started
+      - osrm
     ports:
       - "${FLASK_HOST_PORT:-4017}:4017"
     environment:
