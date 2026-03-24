@@ -21,6 +21,15 @@ function getPricing() {
   const costPerKm = parseFloat(kmInput.value) || T.defaultCostPerKm;
   return { costPerCar, costPerKm };
 }
+function getRequestedCars() {
+  const input = document.getElementById("requestedCarsInput");
+  if (!input) return null;
+  const raw = String(input.value || "").trim();
+  if (!raw) return null;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed)) return null;
+  return parsed;
+}
 let selection = new Map();
 let activeStatusFilter = "";
 let activeRunId = null;
@@ -209,6 +218,7 @@ async function buildRoutes() {
     return;
   }
   const { costPerCar, costPerKm } = getPricing();
+  const requestedCars = getRequestedCars();
   const requestNo = ++lastIssuedRouteRequest;
   const runId = generateRunId();
   activeRunId = runId;
@@ -221,7 +231,7 @@ async function buildRoutes() {
     const res = await fetch("/api/route", {
       method: "POST",
       headers: csrfJsonHeaders(),
-      body: JSON.stringify({ ids, costPerCar, costPerKm, runId }),
+      body: JSON.stringify({ ids, costPerCar, costPerKm, requestedCars, runId }),
       signal: activeRouteController.signal,
     });
     if (requestNo !== lastIssuedRouteRequest || runId !== activeRunId) {

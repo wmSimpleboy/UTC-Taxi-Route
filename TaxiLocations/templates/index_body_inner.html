@@ -10,6 +10,9 @@
         <div class="header-total">
           за км: <input id="priceKmInput" type="number" min="0" step="100" value="{{ cost_per_km|default(2200) }}" style="width:70px;background:var(--bg-input);border:1px solid var(--border);color:var(--fg);border-radius:4px;padding:2px 4px;" />
         </div>
+        <div class="header-total" title="Оставьте пустым для авто-режима">
+          Машин (опц.): <input id="requestedCarsInput" type="number" min="1" step="1" placeholder="auto" style="width:72px;background:var(--bg-input);border:1px solid var(--border);color:var(--fg);border-radius:4px;padding:2px 4px;" />
+        </div>
         <div class="header-total">
           <a href="{{ url_for('logout') }}" style="color: {{ fg_dim }}; font-size: 13px; text-decoration:none;">Выйти</a>
         </div>

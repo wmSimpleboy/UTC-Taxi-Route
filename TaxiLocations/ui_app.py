@@ -26,6 +26,7 @@ from routing import (
     run_routing_for_df_with_urls,
     build_route_data_for_map,
     RoutingCancelled,
+    RoutingInputError,
     OSRMUnavailableError,
     COST_PER_CAR,
     COST_PER_KM,
@@ -294,6 +295,17 @@ def create_app() -> Flask:
 
         cost_per_car = data.get("costPerCar")
         cost_per_km = data.get("costPerKm")
+        requested_cars_raw = data.get("requestedCars", None)
+        requested_cars: int | None = None
+        if requested_cars_raw not in (None, ""):
+            try:
+                requested_cars = int(requested_cars_raw)
+            except (TypeError, ValueError):
+                _cleanup_run(run_id)
+                return jsonify({"error": "requestedCars must be an integer >= 1"}), 400
+            if requested_cars < 1:
+                _cleanup_run(run_id)
+                return jsonify({"error": "requestedCars must be >= 1"}), 400
         try:
             summary, routes, alternatives, best_routes, alt_routes = run_routing_for_df_with_urls(
                 df_selected[["Name", "Gender", "Address", "Lat", "Lon"]],
@@ -301,6 +313,7 @@ def create_app() -> Flask:
                 print_summary=False,
                 cost_per_car=cost_per_car,
                 cost_per_km=cost_per_km,
+                requested_cars=requested_cars,
                 is_cancelled=lambda: _is_run_cancelled(run_id),
             )
             if _is_run_cancelled(run_id):
@@ -326,6 +339,8 @@ def create_app() -> Flask:
             )
         except RoutingCancelled:
             return jsonify({"cancelled": True, "runId": run_id})
+        except RoutingInputError as e:
+            return jsonify({"error": str(e)}), 400
         except OSRMUnavailableError as e:
             return jsonify({"error": str(e)}), 503
         finally:

@@ -26,6 +26,10 @@ class OSRMUnavailableError(RuntimeError):
     """Raised when the OSRM HTTP server cannot be reached or returns an error."""
 
 
+class RoutingInputError(ValueError):
+    """Raised when user-supplied routing params are invalid."""
+
+
 def _ensure_not_cancelled(is_cancelled: Callable[[], bool] | None) -> None:
     if is_cancelled and is_cancelled():
         raise RoutingCancelled("Routing run cancelled")
@@ -198,13 +202,14 @@ def _solve_vrp_once(
     time_limit_s: int,
     random_seed: int,
     cost_per_car: float,
+    requested_cars: int | None = None,
     is_cancelled: Callable[[], bool] | None = None,
 ) -> Tuple[int, List[Dict[str, Any]]]:
     _ensure_not_cancelled(is_cancelled)
     routing_enums_pb2, pywrapcp = _load_ortools()
     n_emp = len(df)
     n = len(dist_km)
-    num_vehicles = n_emp
+    num_vehicles = requested_cars if requested_cars is not None else n_emp
 
     manager = pywrapcp.RoutingIndexManager(n, num_vehicles, 0)
     routing = pywrapcp.RoutingModel(manager)
@@ -214,7 +219,13 @@ def _solve_vrp_once(
 
     cost_cb_idx = routing.RegisterTransitCallback(cost_cb)
     routing.SetArcCostEvaluatorOfAllVehicles(cost_cb_idx)
-    routing.SetFixedCostOfAllVehicles(int(cost_per_car * _COST_SCALE))
+    fixed_cost = int(cost_per_car * _COST_SCALE)
+    if requested_cars is not None:
+        # Force exactly N used vehicles by rewarding every active vehicle.
+        # Since max vehicles == requested_cars, this makes "use all vehicles"
+        # globally preferable, then solver minimizes travel cost.
+        fixed_cost -= 10**12
+    routing.SetFixedCostOfAllVehicles(fixed_cost)
 
     demands = [0] + [1] * n_emp
 
@@ -275,6 +286,7 @@ def _solve_exact_dp(
     dist_km: List[List[float]],
     cost_per_car: float,
     cost_per_km: float,
+    requested_cars: int | None = None,
     is_cancelled: Callable[[], bool] | None = None,
 ) -> List[Dict[str, Any]]:
     """
@@ -306,6 +318,59 @@ def _solve_exact_dp(
             for i in comb:
                 mask |= 1 << (i - 1)
             sub_best[mask] = (best_dist, best_perm)
+
+    if requested_cars is not None:
+        # Phase 2 (exact N cars): dp[mask][k] = min cost to cover "mask"
+        # using exactly k groups.
+        INF = float("inf")
+        dp = [[INF] * (requested_cars + 1) for _ in range(1 << n)]
+        choice: List[List[Tuple[int, int] | None]] = [
+            [None] * (requested_cars + 1) for _ in range(1 << n)
+        ]
+        dp[0][0] = 0.0
+
+        for mask in range(1 << n):
+            for used in range(requested_cars):
+                if dp[mask][used] >= INF:
+                    continue
+                _ensure_not_cancelled(is_cancelled)
+                comp_bits = [b for b in range(n) if not (mask & (1 << b))]
+                for size in range(1, min(MAX_GROUP_SIZE, len(comp_bits)) + 1):
+                    for comb in itertools.combinations(comp_bits, size):
+                        sub_mask = 0
+                        for b in comb:
+                            sub_mask |= 1 << b
+                        dist, _ = sub_best[sub_mask]
+                        cost = dp[mask][used] + cost_per_car + cost_per_km * dist
+                        new_mask = mask | sub_mask
+                        if cost < dp[new_mask][used + 1]:
+                            dp[new_mask][used + 1] = cost
+                            choice[new_mask][used + 1] = (mask, sub_mask)
+
+        if dp[FULL][requested_cars] == INF:
+            raise RoutingInputError(
+                f"Невозможно построить решение ровно на {requested_cars} машин(ы)."
+            )
+
+        # Phase 3: reconstruct exactly requested_cars routes.
+        routes: List[Dict[str, Any]] = []
+        m = FULL
+        used = requested_cars
+        while m and used > 0:
+            prev_mask, sub_mask = choice[m][used]  # type: ignore[misc]
+            dist, perm = sub_best[sub_mask]
+            df_rows = [p - 1 for p in perm]
+            group_df = df.iloc[df_rows].copy()
+            order = [(row["Lat"], row["Lon"]) for _, row in group_df.iterrows()]
+            routes.append({"group": group_df, "order": order, "distance_km": dist})
+            m = prev_mask
+            used -= 1
+
+        log.info(
+            "Exact DP solved %d employees → %d cars, total cost %.0f UZS",
+            n, len(routes), dp[FULL][requested_cars],
+        )
+        return routes
 
     # Phase 2: bitmask DP — optimal partition into groups.
     INF = float("inf")
@@ -354,6 +419,7 @@ def solve_vrp(
     *,
     cost_per_car: float = COST_PER_CAR,
     cost_per_km: float = COST_PER_KM,
+    requested_cars: int | None = None,
     is_cancelled: Callable[[], bool] | None = None,
 ) -> Tuple[List[Dict[str, Any]], List[List[Dict[str, Any]]], bool]:
     """
@@ -367,6 +433,18 @@ def solve_vrp(
     n_emp = len(df)
     if n_emp == 0:
         return [], [], True
+    if requested_cars is not None:
+        if requested_cars < 1:
+            raise RoutingInputError("requested_cars must be >= 1")
+        if requested_cars > n_emp:
+            raise RoutingInputError(
+                f"Нельзя построить ровно {requested_cars} машин(ы) для {n_emp} сотрудников."
+            )
+        if requested_cars * MAX_GROUP_SIZE < n_emp:
+            raise RoutingInputError(
+                f"Недостаточно мест: {requested_cars} машин(ы) x {MAX_GROUP_SIZE} "
+                f"мест < {n_emp} сотрудников."
+            )
 
     coords = [(row["Lat"], row["Lon"]) for _, row in df.iterrows()]
     all_points = [COMPANY_LOCATION] + coords  # 0 = depot
@@ -375,7 +453,7 @@ def solve_vrp(
 
     if n_emp <= EXACT_DP_MAX_N:
         exact_routes = _solve_exact_dp(
-            df, dist_km, cost_per_car, cost_per_km, is_cancelled,
+            df, dist_km, cost_per_car, cost_per_km, requested_cars, is_cancelled,
         )
         return exact_routes, [], True
 
@@ -408,6 +486,7 @@ def solve_vrp(
                 time_limit_s=run_time,
                 random_seed=42 + run_idx,
                 cost_per_car=cost_per_car,
+                requested_cars=requested_cars,
                 is_cancelled=is_cancelled,
             )
             futures[fut] = run_idx
@@ -435,6 +514,11 @@ def solve_vrp(
         log.warning("VRP solver found no solution — falling back to single routes")
         fallback = _fallback_single(df, dist_km)
         return fallback, [], False
+
+    if requested_cars is not None and len(best_routes) != requested_cars:
+        raise RoutingInputError(
+            f"Не удалось построить решение ровно на {requested_cars} машин(ы)."
+        )
 
     return best_routes, alt_solutions, False
 
@@ -741,6 +825,7 @@ def run_routing_for_df_with_urls(
     print_summary: bool = True,
     cost_per_car: float | None = None,
     cost_per_km: float | None = None,
+    requested_cars: int | None = None,
     is_cancelled: Callable[[], bool] | None = None,
 ) -> Tuple[str, List[str], List[List[str]], List[Dict[str, Any]], List[List[Dict[str, Any]]]]:
     _ensure_not_cancelled(is_cancelled)
@@ -765,6 +850,7 @@ def run_routing_for_df_with_urls(
         df,
         cost_per_car=cost_per_car,
         cost_per_km=cost_per_km,
+        requested_cars=requested_cars,
         is_cancelled=is_cancelled,
     )
     _ensure_not_cancelled(is_cancelled)
@@ -798,6 +884,7 @@ def run_routing_for_df(
     print_summary: bool = True,
     cost_per_car: float | None = None,
     cost_per_km: float | None = None,
+    requested_cars: int | None = None,
     is_cancelled: Callable[[], bool] | None = None,
 ) -> str:
     s, _, _, _, _ = run_routing_for_df_with_urls(
@@ -806,6 +893,7 @@ def run_routing_for_df(
         print_summary=print_summary,
         cost_per_car=cost_per_car,
         cost_per_km=cost_per_km,
+        requested_cars=requested_cars,
         is_cancelled=is_cancelled,
     )
     return s
