@@ -10,8 +10,8 @@ COPY TaxiLocations/ ./TaxiLocations/
 
 WORKDIR /app/TaxiLocations
 ENV PYTHONPATH=/app/TaxiLocations
-ENV FLASK_PORT=5002
+ENV FLASK_PORT=4017
 
-EXPOSE 5002
+EXPOSE 4017
 
 CMD ["python", "main.py"]
