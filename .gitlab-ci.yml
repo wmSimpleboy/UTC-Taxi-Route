@@ -6,13 +6,12 @@ variables:
   DOCKER_DRIVER: overlay2
   DOCKER_HOST: "unix:///var/run/docker.sock"
 
-# ---------- TEMPLATE ----------
-
 .before_script_template:
   before_script:
     - apk add --no-cache docker-cli-compose
 
-    # создаём .env
+    # пересоздаём .env
+    - rm -f .env
     - echo "FLASK_SECRET_KEY=$FLASK_SECRET_KEY" >> .env
     - echo "LOGIN_USERNAME=$LOGIN_USERNAME" >> .env
     - echo "LOGIN_PASSWORD=$LOGIN_PASSWORD" >> .env
@@ -21,30 +20,20 @@ variables:
     - echo "FLASK_DEBUG=0" >> .env
     - echo "OSRM_BASE_URL=http://osrm:5000" >> .env
 
-# ---------- BUILD ----------
-
 .build_prod_template:
   stage: build
   image: docker:25
   extends: .before_script_template
   script:
-    - docker compose build
-
-# ---------- DEPLOY ----------
+    - docker compose build web
 
 .deploy_prod_template:
   stage: deploy
   image: docker:25
   extends: .before_script_template
   script:
-    # НЕ трогаем osrm-init и volume
-    - docker compose up -d --remove-orphans
-
-    # чистим мусор
+    - docker compose up -d web
     - docker image prune -f
-
-# ---------- PROD ----------
-
 build-prod:
   extends: .build_prod_template
   tags: [crm-dev]
