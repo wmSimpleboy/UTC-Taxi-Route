@@ -39,5 +39,5 @@ services:
     env_file:
       - path: .env
         required: false
-    volumes:
-      - ./TaxiLocations/employees.json:/app/TaxiLocations/employees.json
+    # volumes:
+    #   - ./TaxiLocations/employees.json:/app/TaxiLocations/employees.json
