@@ -27,8 +27,8 @@ services:
       dockerfile: Dockerfile
     container_name: taxi-locations-web
     restart: unless-stopped
-    depends_on:
-      - osrm
+    # depends_on:
+    #   - osrm
     ports:
       - "${FLASK_HOST_PORT:-4017}:4017"
     environment:
