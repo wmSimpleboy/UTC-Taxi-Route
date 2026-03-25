@@ -11,15 +11,15 @@
 #   rm -rf osrm-data && docker compose up -d --build
 
 services:
-  osrm:
-    image: osrm/osrm-backend
-    container_name: taxi-locations-osrm
-    restart: unless-stopped
-    ports:
-      - "${OSRM_HOST_PORT:-5000}:5000"
-    volumes:
-      - ./osrm-data:/data:ro
-    command: osrm-routed --algorithm mld /data/uzbekistan.osrm
+  # osrm:
+  #   image: osrm/osrm-backend
+  #   container_name: taxi-locations-osrm
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${OSRM_HOST_PORT:-5000}:5000"
+  #   volumes:
+  #     - ./osrm-data:/data:ro
+  #   command: osrm-routed --algorithm mld /data/uzbekistan.osrm
 
   web:
     build:
