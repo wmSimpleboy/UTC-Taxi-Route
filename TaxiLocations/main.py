@@ -1,11 +1,22 @@
+import logging
 import os
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
 
 def main() -> None:
+    # Start Telegram bot in background (no-op when not configured).
+    from telegram_bot import start_telegram_bot_thread
+
+    start_telegram_bot_thread()
+
     # Run Flask web application (defined in ui_app.py).
     from ui_app import create_app
 

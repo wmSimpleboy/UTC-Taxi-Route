@@ -33,6 +33,7 @@ function getRequestedCars() {
 let selection = new Map();
 let activeStatusFilter = "";
 let activeRunId = null;
+let lastCompletedRunId = null;
 let activeRouteController = null;
 let lastIssuedRouteRequest = 0;
 
@@ -45,6 +46,7 @@ const summaryEl = document.getElementById("summary");
 const routesLinksEl = document.getElementById("routesLinks");
 const btnBuildRoutes = document.getElementById("btnBuildRoutes");
 const btnCancelRoutes = document.getElementById("btnCancelRoutes");
+const btnConfirmRoutes = document.getElementById("btnConfirmRoutes");
 
 function normalizeStatus(value) {
   if (value === null || value === undefined) return "";
@@ -210,6 +212,8 @@ async function loadEmployees() {
 
 async function buildRoutes() {
   const ids = [];
+  lastCompletedRunId = null;
+  if (btnConfirmRoutes) btnConfirmRoutes.disabled = true;
   for (const [id, checked] of selection.entries()) {
     if (checked) ids.push(id);
   }
@@ -244,6 +248,7 @@ async function buildRoutes() {
     }
     if (data.cancelled) {
       setStatus("Расчёт отменён", T.colors.fg_yellow);
+      if (btnConfirmRoutes) btnConfirmRoutes.disabled = true;
       return;
     }
     summaryEl.textContent = data.summary || "";
@@ -299,6 +304,8 @@ async function buildRoutes() {
     if (Array.isArray(data.map_routes) && data.map_routes.length) {
       renderRoutesOnMap(data.map_routes);
     }
+    lastCompletedRunId = runId;
+    if (btnConfirmRoutes) btnConfirmRoutes.disabled = false;
     setStatus("Готово", T.colors.fg_green);
   } catch (err) {
     if (err && err.name === "AbortError") {
@@ -307,6 +314,7 @@ async function buildRoutes() {
     }
     console.error(err);
     setStatus("Ошибка при расчёте маршрутов", T.colors.fg_red);
+    if (btnConfirmRoutes) btnConfirmRoutes.disabled = true;
   } finally {
     if (requestNo === lastIssuedRouteRequest) {
       activeRouteController = null;
@@ -332,6 +340,48 @@ async function cancelRoutes() {
   } catch (err) {
     console.error(err);
     setStatus("Не удалось отменить расчёт", T.colors.fg_red);
+  }
+}
+
+function getTelegramFilterName() {
+  if (!activeStatusFilter) return "Все";
+  if (activeStatusFilter === STATUS_UNSET_FILTER) return "Без статуса";
+  return activeStatusFilter;
+}
+
+async function confirmRoutes() {
+  if (!lastCompletedRunId) return;
+  if (!btnConfirmRoutes) return;
+  btnConfirmRoutes.disabled = true;
+
+  const runId = lastCompletedRunId;
+  const filterName = getTelegramFilterName();
+
+  setStatus("Отправка подтверждения...", T.colors.fg_yellow);
+  try {
+    const res = await fetch("/api/route/confirm", {
+      method: "POST",
+      headers: csrfJsonHeaders(),
+      body: JSON.stringify({ runId, filterName }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || `Ошибка сервера (${res.status})`);
+    }
+
+    if (data.telegramSent === false) {
+      setStatus(
+        "Подтверждено, но Telegram не отправился",
+        T.colors.fg_yellow
+      );
+    } else {
+      setStatus("Маршрут подтвержден", T.colors.fg_green);
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus("Ошибка при подтверждении маршрута", T.colors.fg_red);
+    // Allow re-try.
+    btnConfirmRoutes.disabled = false;
   }
 }
 
@@ -399,6 +449,10 @@ btnBuildRoutes.addEventListener("click", () => {
 });
 btnCancelRoutes.addEventListener("click", () => {
   cancelRoutes();
+});
+
+btnConfirmRoutes.addEventListener("click", () => {
+  confirmRoutes();
 });
 
 document.getElementById("btnCopySummary").addEventListener("click", () => {

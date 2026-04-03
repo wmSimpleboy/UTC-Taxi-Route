@@ -637,6 +637,115 @@ def maybe_split_long_routes(
     return result
 
 
+def _force_split_route(
+    route: Dict[str, Any],
+    cost_per_car: float,
+    cost_per_km: float,
+    is_cancelled: Callable[[], bool] | None,
+) -> List[Dict[str, Any]] | None:
+    """
+    Split a route into two cars trying to minimize additional cost.
+
+    Unlike `maybe_split_long_routes`, this is used to reach a user-requested
+    number of cars, so there is no extra-cost budget limit.
+    """
+    return _try_split_route(
+        route,
+        cost_per_car,
+        cost_per_km,
+        max_extra=float("inf"),
+        is_cancelled=is_cancelled,
+    )
+
+
+def _is_single_direction(route: Dict[str, Any]) -> bool:
+    """
+    Return True when all passengers in this route are located in a narrow
+    angular sector from the office (approx. same "direction").
+
+    This heuristic aims to avoid splitting routes that naturally form
+    one-way movement.
+    """
+    import math
+
+    order = route["order"]
+    if len(order) < 2:
+        return True
+
+    office_lat, office_lon = COMPANY_LOCATION
+    angles: List[float] = []
+    for lat, lon in order:
+        # Use office-centered polar angle.
+        angles.append(math.atan2(lat - office_lat, lon - office_lon))
+
+    angles.sort()
+
+    # Compute largest gap on the circle.
+    max_gap = 0.0
+    for i in range(1, len(angles)):
+        max_gap = max(max_gap, angles[i] - angles[i - 1])
+
+    wrap_gap = (2 * math.pi) - (angles[-1] - angles[0])
+    max_gap = max(max_gap, wrap_gap)
+
+    # "Spread" is the complement of the largest gap.
+    spread = (2 * math.pi) - max_gap
+    return spread < math.radians(40)
+
+
+def split_to_reach_target_cars(
+    routes: List[Dict[str, Any]],
+    target_cars: int,
+    *,
+    cost_per_car: float = COST_PER_CAR,
+    cost_per_km: float = COST_PER_KM,
+    is_cancelled: Callable[[], bool] | None = None,
+) -> List[Dict[str, Any]]:
+    """
+    Iteratively increase the number of routes by splitting the longest
+    eligible route until `len(routes) == target_cars` (or no split is possible).
+    """
+    if target_cars <= 0:
+        return routes
+
+    result = list(routes)
+    while len(result) < target_cars:
+        _ensure_not_cancelled(is_cancelled)
+
+        # Prefer splitting routes that look like they go "in multiple directions".
+        candidates = [
+            (idx, r)
+            for idx, r in enumerate(result)
+            if len(r["group"]) >= 2 and not _is_single_direction(r)
+        ]
+        if not candidates:
+            # Fallback: if everything is single-direction, allow splitting anyway.
+            candidates = [
+                (idx, r) for idx, r in enumerate(result) if len(r["group"]) >= 2
+            ]
+
+        if not candidates:
+            log.warning(
+                "Cannot split further to reach target cars: no eligible routes. "
+                "Current=%d Target=%d",
+                len(result),
+                target_cars,
+            )
+            break
+
+        candidates.sort(key=lambda x: x[1]["distance_km"], reverse=True)
+        idx, longest = candidates[0]
+
+        split = _force_split_route(longest, cost_per_car, cost_per_km, is_cancelled)
+        if split is None:
+            log.warning("Split failed for route index=%d; stopping.", idx)
+            break
+
+        result = result[:idx] + split + result[idx + 1 :]
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Cost helpers
 # ---------------------------------------------------------------------------
@@ -845,24 +954,79 @@ def run_routing_for_df_with_urls(
     if cost_per_km is None:
         cost_per_km = COST_PER_KM
 
-    df = preprocess_duplicates(df)
-    best_routes, alt_routes, is_exact = solve_vrp(
-        df,
-        cost_per_car=cost_per_car,
-        cost_per_km=cost_per_km,
-        requested_cars=requested_cars,
-        is_cancelled=is_cancelled,
-    )
-    _ensure_not_cancelled(is_cancelled)
+    n_emp = len(df)
+    # `solve_vrp()` performs validations for `requested_cars`, but in the new
+    # flow we may call `solve_vrp()` without `requested_cars` and then split.
+    # Keep the feasibility checks here for backward compatibility.
+    if requested_cars is not None:
+        if requested_cars < 1:
+            raise RoutingInputError("requested_cars must be >= 1")
+        if requested_cars > n_emp:
+            raise RoutingInputError(
+                f"Нельзя построить ровно {requested_cars} машин(ы) для {n_emp} сотрудников."
+            )
+        if requested_cars * MAX_GROUP_SIZE < n_emp:
+            raise RoutingInputError(
+                f"Недостаточно мест: {requested_cars} машин(ы) x {MAX_GROUP_SIZE} "
+                f"мест < {n_emp} сотрудников."
+            )
 
-    if not is_exact:
-        best_routes = maybe_split_long_routes(
-            best_routes,
+    df = preprocess_duplicates(df)
+
+    best_routes: List[Dict[str, Any]]
+    alt_routes: List[List[Dict[str, Any]]]
+    is_exact: bool
+
+    if requested_cars is None:
+        # Auto mode: let the optimizer decide car count.
+        best_routes, alt_routes, is_exact = solve_vrp(
+            df,
             cost_per_car=cost_per_car,
             cost_per_km=cost_per_km,
+            requested_cars=None,
             is_cancelled=is_cancelled,
         )
         _ensure_not_cancelled(is_cancelled)
+
+        if not is_exact:
+            best_routes = maybe_split_long_routes(
+                best_routes,
+                cost_per_car=cost_per_car,
+                cost_per_km=cost_per_km,
+                is_cancelled=is_cancelled,
+            )
+            _ensure_not_cancelled(is_cancelled)
+    else:
+        # User requested exact number of cars — always re-solve with that
+        # constraint so passengers are regrouped optimally.
+        best_routes, alt_routes, is_exact = solve_vrp(
+            df,
+            cost_per_car=cost_per_car,
+            cost_per_km=cost_per_km,
+            requested_cars=requested_cars,
+            is_cancelled=is_cancelled,
+        )
+        _ensure_not_cancelled(is_cancelled)
+
+        if not is_exact:
+            best_routes = maybe_split_long_routes(
+                best_routes,
+                cost_per_car=cost_per_car,
+                cost_per_km=cost_per_km,
+                is_cancelled=is_cancelled,
+            )
+            _ensure_not_cancelled(is_cancelled)
+
+        # If solver returned fewer routes than requested (e.g. split merged
+        # some), use splitting as a fallback to reach the target count.
+        if len(best_routes) < requested_cars:
+            best_routes = split_to_reach_target_cars(
+                best_routes,
+                requested_cars,
+                cost_per_car=cost_per_car,
+                cost_per_km=cost_per_km,
+                is_cancelled=is_cancelled,
+            )
 
     summary = summarize_routes(
         best_routes, cost_per_car=cost_per_car, cost_per_km=cost_per_km,
